@@ -1,0 +1,13 @@
+[workspace]
+authors = ["Kenura Gunarathna <kenura.gunarathna@thenex.global>"]
+channels = ["conda-forge"]
+name = "Smart Locker Network"
+platforms = ["osx-arm64"]
+version = "0.1.0"
+
+[tasks]
+build = "python cad/rack.py"
+
+[dependencies]
+python = "3.12.*"
+cadquery = ">=2.8.0,<3"

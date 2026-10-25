@@ -1,0 +1,24 @@
+# pixi environments
+.pixi/*
+!.pixi/config.toml
+
+# Generated CAD output (rebuild with `pixi run build`)
+cad/out/
+
+# Python
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+
+# FreeCAD backups
+*.FCStd1
+*.FCBak
+
+# macOS
+.DS_Store
+._*
+
+# Editors
+.vscode/
+.idea/
+*.swp

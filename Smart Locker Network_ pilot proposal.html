@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Smart Locker Network: pilot proposal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#0f3d91;
+  --paper-deep:#0a2f78;
+  --panel:#0b3382;
+  --inside:#071f55;
+  --line:#d6e6ff;
+  --line-dim:rgba(214,230,255,.38);
+  --grid-minor:rgba(214,230,255,.07);
+  --grid-major:rgba(214,230,255,.14);
+  --ink:#eaf2ff;
+  --ink-soft:#b9cdf2;
+  --amber:#ffd166;
+  --green:#6df0a8;
+  --red:#ff7a7a;
+  --white:#ffffff;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#0b2f73; --paper-deep:#08265f; --panel:#092c6c; --inside:#051743;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0b2f73; --paper-deep:#08265f; --panel:#092c6c; --inside:#051743;
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px);scroll-behavior:smooth}
+*,*::before,*::after{box-sizing:border-box}
+body{
+  margin:0;
+  padding:14px;
+  background-color:var(--paper);
+  background-image:
+    linear-gradient(var(--grid-major) 1px,transparent 1px),
+    linear-gradient(90deg,var(--grid-major) 1px,transparent 1px),
+    linear-gradient(var(--grid-minor) 1px,transparent 1px),
+    linear-gradient(90deg,var(--grid-minor) 1px,transparent 1px);
+  background-size:100px 100px,100px 100px,20px 20px,20px 20px;
+  color:var(--ink);
+  font-family:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  font-size:17px;
+  line-height:1.6;
+  -webkit-font-smoothing:antialiased;
+}
+.sheet{
+  max-width:1180px;
+  margin:0 auto;
+  border:2px solid var(--line);
+  outline:1px solid var(--line-dim);
+  outline-offset:5px;
+}
+section{
+  padding:clamp(40px,7vw,84px) clamp(20px,5vw,64px);
+  border-top:1px solid var(--line-dim);
+}
+section:first-of-type{border-top:0}
+h1,h2,h3{
+  font-family:"Barlow Condensed","Arial Narrow",sans-serif;
+  font-weight:600;
+  line-height:1.05;
+  margin:0;
+  letter-spacing:.005em;
+}
+h1{font-size:clamp(48px,8vw,96px);font-weight:700}
+h2{font-size:clamp(34px,5vw,54px);margin-bottom:.4em}
+h3{font-size:clamp(22px,2.4vw,28px);margin-bottom:.35em}
+p{margin:0 0 1em;max-width:62ch}
+.lead{font-size:clamp(18px,2vw,21px);color:var(--ink);max-width:54ch}
+.soft{color:var(--ink-soft)}
+a{color:inherit}
+:focus-visible{outline:3px solid var(--amber);outline-offset:3px}
+
+/* Hero */
+.hero{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.05fr);gap:clamp(24px,4vw,56px);align-items:center}
+.hero h1{margin-bottom:.25em}
+.actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:28px}
+.btn{
+  display:inline-block;padding:12px 22px;border:2px solid var(--line);
+  font-family:"Barlow Condensed",sans-serif;font-weight:600;font-size:21px;letter-spacing:.02em;
+  text-decoration:none;color:var(--ink);background:transparent;
+  transition:background .2s,color .2s;
+}
+.btn:hover{background:var(--line);color:var(--paper-deep)}
+.btn.solid{background:var(--line);color:var(--paper-deep)}
+.btn.solid:hover{background:var(--white)}
+.drawing{margin:0}
+.drawing svg{display:block;width:100%;height:auto;max-width:640px;margin:0 auto;overflow:visible}
+.drawing svg text{font-family:"Barlow Condensed",sans-serif;fill:var(--line)}
+.drawing figcaption{margin-top:10px;font-size:15px;color:var(--ink-soft);text-align:center;max-width:none}
+.legend{display:flex;flex-wrap:wrap;gap:8px 20px;justify-content:center;margin:14px 0 0;padding:0;list-style:none;font-size:15px}
+.legend li{display:flex;align-items:center;gap:8px}
+.dot{width:12px;height:12px;border-radius:50%;background:var(--c);box-shadow:0 0 8px var(--c);flex:none;display:inline-block}
+.dot.green{--c:var(--green)} .dot.amber{--c:var(--amber)} .dot.white{--c:var(--white)} .dot.red{--c:var(--red)}
+
+/* Locker interaction */
+.locker{cursor:pointer;outline:none}
+.locker[data-state="empty"]{--c:var(--green)}
+.locker[data-state="reserved"]{--c:var(--amber)}
+.locker[data-state="open"]{--c:var(--white)}
+.locker[data-state="occupied"]{--c:var(--red)}
+.led{fill:var(--c);filter:drop-shadow(0 0 5px var(--c));transition:fill .3s}
+.door{transform-box:fill-box;transform-origin:left center;transition:transform .55s cubic-bezier(.5,0,.2,1)}
+.locker[data-state="open"] .door{transform:scaleX(.14)}
+.ring{opacity:0;stroke:var(--amber);stroke-width:3;stroke-dasharray:8 6;fill:none}
+.locker:focus-visible .ring{opacity:1}
+.locker:hover .shell{stroke:var(--white)}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+/* Problem */
+.three{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;margin-top:36px;border:1px solid var(--line-dim)}
+.three > div{padding:26px 26px 14px;border-left:1px solid var(--line-dim)}
+.three > div:first-child{border-left:0}
+.three p{color:var(--ink-soft);max-width:none}
+
+/* Solution */
+.split{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:clamp(24px,4vw,56px);align-items:start;margin-top:32px}
+.plan svg{display:block;width:100%;height:auto;max-width:520px;margin:0 auto}
+.plan svg text{font-family:"Barlow Condensed",sans-serif;fill:var(--line)}
+.plan figcaption{margin-top:8px;text-align:center;font-size:15px;color:var(--ink-soft)}
+.plan{margin:0}
+.parts{list-style:none;margin:0;padding:0;counter-reset:part}
+.parts li{counter-increment:part;position:relative;padding:0 0 18px 48px}
+.parts li::before{
+  content:counter(part);position:absolute;left:0;top:2px;width:30px;height:30px;border-radius:50%;
+  border:2px solid var(--amber);color:var(--amber);display:grid;place-items:center;
+  font-family:"Barlow Condensed",sans-serif;font-weight:600;font-size:19px;line-height:1;
+}
+.parts strong{display:block;font-weight:600}
+.parts span{color:var(--ink-soft);display:block;max-width:48ch}
+.facts{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));margin:44px 0 0;border:1px solid var(--line-dim)}
+.facts div{padding:16px 20px;border-left:1px solid var(--line-dim)}
+.facts div:first-child{border-left:0}
+.facts dt{font-size:15px;color:var(--ink-soft)}
+.facts dd{margin:2px 0 0;font-family:"Barlow Condensed",sans-serif;font-weight:600;font-size:24px;line-height:1.2}
+
+/* Steps */
+.steps{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));margin:36px 0 0;padding:0;list-style:none;border:1px solid var(--line-dim);counter-reset:step}
+.steps li{counter-increment:step;padding:22px 22px 24px;border-left:1px solid var(--line-dim)}
+.steps li:first-child{border-left:0}
+.step-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.step-top::before{content:counter(step);font-family:"Barlow Condensed",sans-serif;font-weight:600;font-size:44px;line-height:1;color:var(--line-dim)}
+.chip{display:inline-flex;align-items:center;gap:8px;font-size:14px;border:1px solid var(--line-dim);padding:3px 10px 3px 8px;border-radius:999px}
+.steps p{color:var(--ink-soft);margin:0;max-width:none;font-size:16px}
+.note{margin-top:28px;border-left:3px solid var(--amber);padding-left:18px;max-width:64ch}
+
+/* Network */
+.chain{display:flex;align-items:stretch;margin-top:36px}
+.node{flex:0 0 auto;width:clamp(150px,19vw,214px);border:2px solid var(--line);background:var(--paper-deep);padding:16px 16px 12px}
+.node h3{font-size:24px;margin-bottom:.3em}
+.node p{font-size:15px;color:var(--ink-soft);margin:0 0 .5em;max-width:none;line-height:1.45}
+.link{flex:1 1 0;min-width:84px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:0 6px}
+.link span{font-family:"Barlow Condensed",sans-serif;font-weight:600;font-size:20px;color:var(--amber);text-align:center;line-height:1.1}
+.link i{display:block;width:100%;height:2px;background:repeating-linear-gradient(90deg,var(--line) 0 8px,transparent 8px 16px)}
+.chain-note{margin-top:22px;color:var(--ink-soft);max-width:70ch}
+@media (prefers-reduced-motion: no-preference){
+  .link i{animation:flowx 1s linear infinite}
+  @keyframes flowx{to{background-position-x:16px}}
+  @keyframes flowy{to{background-position-y:16px}}
+}
+
+/* Catalog */
+.catalog h3{margin:44px 0 12px}
+.catalog h3:first-of-type{margin-top:32px}
+.tablewrap{overflow-x:auto;border:1px solid var(--line-dim);-webkit-overflow-scrolling:touch}
+.tablewrap table{width:100%;min-width:760px;border-collapse:collapse;font-size:16px;line-height:1.45}
+.tablewrap caption{text-align:left}
+.tablewrap th{
+  text-align:left;font-family:"Barlow Condensed",sans-serif;font-weight:600;font-size:20px;
+  padding:10px 16px;background:var(--paper-deep);border-bottom:2px solid var(--line);white-space:nowrap
+}
+.tablewrap td{padding:11px 16px;border-top:1px solid var(--line-dim);vertical-align:top;color:var(--ink-soft)}
+.tablewrap tbody tr:first-child td{border-top:0}
+.tablewrap td:first-child{color:var(--ink);font-weight:500;width:26%}
+.tablewrap td:nth-child(2){width:9%;white-space:nowrap;color:var(--ink)}
+.tablewrap th:nth-child(2){width:9%}
+.tablewrap td.price,.tablewrap th:last-child{white-space:nowrap;text-align:right;width:13%}
+.tablewrap td.price{color:var(--ink)}
+.tablewrap td small{font-size:13px;color:var(--ink-soft);font-weight:400}
+.catalog .tnote{margin:14px 0 0;font-size:15px;color:var(--ink-soft);max-width:none}
+
+/* Pilot */
+.pilot{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:clamp(24px,4vw,56px)}
+.asks{margin:0;padding:0;list-style:none}
+.asks li{padding:14px 0 14px 34px;border-top:1px solid var(--line-dim);position:relative}
+.asks li:last-child{border-bottom:1px solid var(--line-dim)}
+.asks li::before{content:"";position:absolute;left:4px;top:24px;width:14px;height:8px;border-left:2px solid var(--amber);border-bottom:2px solid var(--amber);transform:rotate(-45deg)}
+.titleblock{
+  display:grid;grid-template-columns:repeat(4,minmax(0,1fr));margin-top:56px;border:2px solid var(--line);
+}
+.titleblock div{padding:10px 16px 12px;border-left:1px solid var(--line);border-top:1px solid var(--line)}
+.titleblock div:nth-child(-n+4){border-top:0}
+.titleblock div:nth-child(4n+1){border-left:0}
+.titleblock small{display:block;font-size:13px;color:var(--ink-soft);line-height:1.3}
+.titleblock b{font-family:"Barlow Condensed",sans-serif;font-weight:600;font-size:22px;line-height:1.2;display:block;overflow-wrap:anywhere}
+.titleblock .wide{grid-column:span 2}
+.todo{color:var(--amber)}
+
+@media (max-width:900px){
+  body{padding:8px;font-size:16px}
+  .hero,.split,.pilot{grid-template-columns:minmax(0,1fr)}
+  .three{grid-template-columns:minmax(0,1fr)}
+  .three > div{border-left:0;border-top:1px solid var(--line-dim)}
+  .three > div:first-child{border-top:0}
+  .facts,.steps{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .facts div:nth-child(3),.steps li:nth-child(3){border-left:0}
+  .facts div:nth-child(n+3),.steps li:nth-child(n+3){border-top:1px solid var(--line-dim)}
+  .chain{flex-direction:column;align-items:center}
+  .node{width:100%;max-width:420px}
+  .link{flex:none;min-height:84px;min-width:0;flex-direction:row;gap:12px;padding:6px 0}
+  .link i{width:2px;height:48px;background:repeating-linear-gradient(180deg,var(--line) 0 8px,transparent 8px 16px)}
+  .link span{text-align:left}
+  .titleblock{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .titleblock div{border-left:1px solid var(--line);border-top:1px solid var(--line)}
+  .titleblock div:nth-child(-n+2){border-top:0}
+  .titleblock div:nth-child(odd){border-left:0}
+  .titleblock .wide{grid-column:span 2;border-left:0}
+}
+@media (max-width:900px) and (prefers-reduced-motion: no-preference){
+  .link i{animation:flowy 1s linear infinite}
+}
+@media (max-width:520px){
+  .facts,.steps{grid-template-columns:minmax(0,1fr)}
+  .facts div,.steps li{border-left:0!important;border-top:1px solid var(--line-dim)}
+  .facts div:first-child,.steps li:first-child{border-top:0}
+}
+@media (prefers-reduced-motion: reduce){
+  html{scroll-behavior:auto}
+  .door,.led,.btn{transition:none}
+}
+</style>
+</head>
+<body>
+<main class="sheet">
+
+<!-- HERO -->
+<section class="hero" id="top">
+  <div>
+    <h1>Smart Locker Network</h1>
+    <p class="lead">Modular lockers where students leave bags and laptops, and borrow lab and sports equipment. Every use is recorded automatically, so staff no longer collect student IDs by hand.</p>
+    <p class="soft">Pilot proposal for university administration.</p>
+    <div class="actions">
+      <a class="btn solid" href="#how">See how it works</a>
+      <a class="btn" href="#pilot">What we ask of the university</a>
+    </div>
+  </div>
+
+  <figure class="drawing">
+    <svg id="rack" viewBox="0 0 640 530" role="group" aria-label="Front view of a rack holding three lockers. Each locker is 25 centimetres wide and 60 centimetres high.">
+      <g fill="none" stroke="var(--line)" stroke-width="2" stroke-linejoin="round">
+        <!-- rack frame and controller bay -->
+        <rect class="draw" data-d="0" x="100" y="30" width="440" height="436"/>
+        <rect class="draw" data-d=".35" x="116" y="44" width="408" height="66"/>
+        <!-- dimension lines -->
+        <g stroke="var(--amber)" stroke-width="1.5">
+          <line class="draw" data-d="1.7" x1="118" y1="494" x2="243" y2="494"/>
+          <line class="draw" data-d="1.8" x1="118" y1="484" x2="118" y2="504"/>
+          <line class="draw" data-d="1.8" x1="243" y1="484" x2="243" y2="504"/>
+          <line class="draw" data-d="1.7" x1="566" y1="130" x2="566" y2="430"/>
+          <line class="draw" data-d="1.8" x1="556" y1="130" x2="576" y2="130"/>
+          <line class="draw" data-d="1.8" x1="556" y1="430" x2="576" y2="430"/>
+        </g>
+      </g>
+
+      <!-- controller bay content -->
+      <g class="reveal" data-d="1.0">
+        <text x="132" y="84" font-size="22" font-weight="600">Rack controller</text>
+        <g fill="none" stroke="var(--line)" stroke-width="2" stroke-linecap="round">
+          <path d="M452 92v-26M452 66l-8 10M452 66l8 10"/>
+          <path d="M486 92v-18M486 74l-6 8M486 74l6 8"/>
+        </g>
+      </g>
+
+      <!-- lockers -->
+      <g class="locker" data-state="empty" transform="translate(118,130)" tabindex="0" role="button" aria-label="Locker 1, empty. Press to change its state.">
+        <rect class="inside" width="125" height="300" fill="var(--inside)" stroke="none"/>
+        <g class="beams" stroke="var(--line-dim)" stroke-width="1.5" stroke-dasharray="3 5"></g>
+        <rect class="draw shell" data-d=".8" width="125" height="300" fill="none" stroke="var(--line)" stroke-width="2"/>
+        <line class="draw" data-d="1" x1="0" y1="24" x2="125" y2="24" stroke="var(--line)" stroke-width="2"/>
+        <g class="door">
+          <rect x="0" y="24" width="125" height="276" fill="var(--panel)" stroke="var(--line)" stroke-width="2"/>
+          <line x1="104" y1="130" x2="104" y2="176" stroke="var(--line)" stroke-width="4" stroke-linecap="round"/>
+          <circle cx="104" cy="206" r="5" fill="none" stroke="var(--line)" stroke-width="2"/>
+        </g>
+        <circle class="led reveal" data-d="2.1" cx="62.5" cy="12" r="6"/>
+        <text class="state-label reveal" data-d="2.1" x="62.5" y="322" font-size="19" text-anchor="middle" font-weight="500">Empty</text>
+        <rect class="ring" x="-6" y="-6" width="137" height="312"/>
+      </g>
+
+      <g class="locker" data-state="reserved" transform="translate(258,130)" tabindex="0" role="button" aria-label="Locker 2, reserved. Press to change its state.">
+        <rect class="inside" width="125" height="300" fill="var(--inside)" stroke="none"/>
+        <g class="beams" stroke="var(--line-dim)" stroke-width="1.5" stroke-dasharray="3 5"></g>
+        <rect class="draw shell" data-d=".95" width="125" height="300" fill="none" stroke="var(--line)" stroke-width="2"/>
+        <line class="draw" data-d="1.15" x1="0" y1="24" x2="125" y2="24" stroke="var(--line)" stroke-width="2"/>
+        <g class="door">
+          <rect x="0" y="24" width="125" height="276" fill="var(--panel)" stroke="var(--line)" stroke-width="2"/>
+          <line x1="104" y1="130" x2="104" y2="176" stroke="var(--line)" stroke-width="4" stroke-linecap="round"/>
+          <circle cx="104" cy="206" r="5" fill="none" stroke="var(--line)" stroke-width="2"/>
+        </g>
+        <circle class="led reveal" data-d="2.2" cx="62.5" cy="12" r="6"/>
+        <text class="state-label reveal" data-d="2.2" x="62.5" y="322" font-size="19" text-anchor="middle" font-weight="500">Reserved</text>
+        <rect class="ring" x="-6" y="-6" width="137" height="312"/>
+      </g>
+
+      <g class="locker" data-state="occupied" transform="translate(398,130)" tabindex="0" role="button" aria-label="Locker 3, occupied. Press to change its state.">
+        <rect class="inside" width="125" height="300" fill="var(--inside)" stroke="none"/>
+        <g class="beams" stroke="var(--line-dim)" stroke-width="1.5" stroke-dasharray="3 5"></g>
+        <rect class="draw shell" data-d="1.1" width="125" height="300" fill="none" stroke="var(--line)" stroke-width="2"/>
+        <line class="draw" data-d="1.3" x1="0" y1="24" x2="125" y2="24" stroke="var(--line)" stroke-width="2"/>
+        <g class="door">
+          <rect x="0" y="24" width="125" height="276" fill="var(--panel)" stroke="var(--line)" stroke-width="2"/>
+          <line x1="104" y1="130" x2="104" y2="176" stroke="var(--line)" stroke-width="4" stroke-linecap="round"/>
+          <circle cx="104" cy="206" r="5" fill="none" stroke="var(--line)" stroke-width="2"/>
+        </g>
+        <circle class="led reveal" data-d="2.3" cx="62.5" cy="12" r="6"/>
+        <text class="state-label reveal" data-d="2.3" x="62.5" y="322" font-size="19" text-anchor="middle" font-weight="500">Occupied</text>
+        <rect class="ring" x="-6" y="-6" width="137" height="312"/>
+      </g>
+
+      <!-- dimension labels -->
+      <g class="reveal" data-d="2.2" fill="var(--amber)">
+        <text x="180" y="520" font-size="20" text-anchor="middle" style="fill:var(--amber)">25 cm</text>
+        <text transform="translate(598,285) rotate(90)" font-size="20" text-anchor="middle" style="fill:var(--amber)">60 cm</text>
+      </g>
+    </svg>
+    <figcaption>Tap a locker to try its states. Each locker is 25 × 60 × 60 cm (width × height × depth), and a rack holds 2 or 3.</figcaption>
+    <ul class="legend" aria-label="LED colours">
+      <li><span class="dot green"></span>Empty</li>
+      <li><span class="dot amber"></span>Reserved</li>
+      <li><span class="dot white"></span>Open</li>
+      <li><span class="dot red"></span>Occupied</li>
+    </ul>
+    <p class="sr" id="live" aria-live="polite"></p>
+  </figure>
+</section>
+
+<!-- PROBLEM -->
+<section id="problem">
+  <h2>What students and staff deal with today</h2>
+  <p class="lead">Storing things and borrowing things on campus both depend on people and paper.</p>
+  <div class="three">
+    <div>
+      <h3>Nowhere safe to leave things</h3>
+      <p>Most buildings have no place to put a bag or a laptop. Students carry everything with them all day.</p>
+    </div>
+    <div>
+      <h3>Borrowing relies on one person</h3>
+      <p>Lab and sports items are issued by a staff member who takes the student's ID and writes the loan down. If something goes missing, there is no clear record of who had it or when.</p>
+    </div>
+    <div>
+      <h3>No room for a locker room</h3>
+      <p>Many university buildings, especially government ones in Sri Lanka, have no space set aside for fixed lockers.</p>
+    </div>
+  </div>
+</section>
+
+<!-- SOLUTION -->
+<section id="solution">
+  <h2>Lockers built as movable modules</h2>
+  <p class="lead">Plywood lockers slide into a rack. Take a locker out, plug it into a rack somewhere else, and it works there.</p>
+
+  <div class="split">
+    <figure class="plan">
+      <svg viewBox="0 0 520 480" role="img" aria-label="Top-down cutaway of one locker showing the door lock, door sensor, status LED, buzzer, beam grid, locker node and bus connector.">
+        <g fill="none" stroke="var(--line)" stroke-width="2" stroke-linejoin="round">
+          <rect x="185" y="50" width="150" height="360"/>
+          <rect x="185" y="404" width="150" height="12" fill="rgba(214,230,255,.3)"/>
+          <rect x="215" y="56" width="100" height="18" fill="rgba(214,230,255,.18)"/>
+          <rect x="250" y="36" width="30" height="14" fill="rgba(214,230,255,.18)"/>
+          <rect x="200" y="390" width="10" height="12" fill="rgba(214,230,255,.5)"/>
+          <rect x="300" y="388" width="26" height="14" fill="rgba(214,230,255,.5)"/>
+          <circle cx="230" cy="438" r="8" fill="var(--green)" stroke="none"/>
+          <circle cx="290" cy="438" r="8"/>
+          <circle cx="290" cy="438" r="3"/>
+        </g>
+        <g id="beams-plan" stroke="var(--line-dim)" stroke-width="1.5" stroke-dasharray="3 5" fill="none"></g>
+        <text x="260" y="378" font-size="14" text-anchor="middle" style="fill:var(--ink-soft)">Door side</text>
+        <g stroke="var(--amber)" stroke-width="1.5" fill="none">
+          <line x1="111" y1="397" x2="199" y2="397"/>
+          <line x1="223" y1="438" x2="151" y2="438"/>
+          <line x1="297" y1="438" x2="369" y2="438"/>
+          <line x1="109" y1="65" x2="215" y2="65"/>
+          <line x1="409" y1="395" x2="326" y2="395"/>
+          <line x1="409" y1="260" x2="331" y2="260"/>
+          <line x1="409" y1="43" x2="280" y2="43"/>
+        </g>
+        <g fill="var(--paper)" stroke="var(--amber)" stroke-width="2">
+          <circle cx="100" cy="397" r="11"/><circle cx="140" cy="438" r="11"/><circle cx="380" cy="438" r="11"/>
+          <circle cx="98" cy="65" r="11"/><circle cx="420" cy="395" r="11"/><circle cx="420" cy="260" r="11"/><circle cx="420" cy="43" r="11"/>
+        </g>
+        <g font-size="17" font-weight="600" text-anchor="middle" style="fill:var(--amber)">
+          <text x="100" y="403" style="fill:var(--amber)">2</text>
+          <text x="140" y="444" style="fill:var(--amber)">3</text>
+          <text x="380" y="444" style="fill:var(--amber)">4</text>
+          <text x="98" y="71" style="fill:var(--amber)">6</text>
+          <text x="420" y="401" style="fill:var(--amber)">1</text>
+          <text x="420" y="266" style="fill:var(--amber)">5</text>
+          <text x="420" y="49" style="fill:var(--amber)">7</text>
+        </g>
+      </svg>
+      <figcaption>Top view of one locker, door at the bottom</figcaption>
+    </figure>
+
+    <ol class="parts">
+      <li><strong>Lock</strong><span>A 12 V solenoid lock that stays locked without power, with a key for staff to override.</span></li>
+      <li><strong>Door sensor</strong><span>Tells the system whether the door is open or closed.</span></li>
+      <li><strong>Status LED</strong><span>Shows from across the room whether the locker is empty, reserved, open or occupied.</span></li>
+      <li><strong>Buzzer</strong><span>Sounds when a door is left open or something looks wrong.</span></li>
+      <li><strong>Beam grid</strong><span>Eight light beams sense whether something is inside and roughly how big it is.</span></li>
+      <li><strong>Locker node</strong><span>A small microcontroller that reads the sensors and drives the lock.</span></li>
+      <li><strong>Bus connector</strong><span>One 6-pin plug carries the RS485 data pair, ground, power and two address lines to the rack, so a locker can be unplugged and moved.</span></li>
+    </ol>
+  </div>
+
+  <dl class="facts">
+    <div><dt>Locker size</dt><dd>25 × 60 × 60 cm</dd></div>
+    <div><dt>Locker body</dt><dd>18 mm plywood</dd></div>
+    <div><dt>Rack frame</dt><dd>Wood</dd></div>
+    <div><dt>Lockers per rack</dt><dd>2 to 3 at least</dd></div>
+  </dl>
+</section>
+
+<!-- HOW IT WORKS -->
+<section id="how">
+  <h2>From reservation to return</h2>
+  <p class="lead">Students use a mobile app. The locker LED changes at each step.</p>
+  <ol class="steps">
+    <li>
+      <div class="step-top"><span class="chip"><span class="dot amber"></span>Reserved</span></div>
+      <h3>Reserve</h3>
+      <p>The student picks a locker or an item in the app, signed in with their student ID.</p>
+    </li>
+    <li>
+      <div class="step-top"><span class="chip"><span class="dot white"></span>Open</span></div>
+      <h3>Unlock</h3>
+      <p>The phone opens the locker over Bluetooth with a time-limited code, so it still works if the network is down.</p>
+    </li>
+    <li>
+      <div class="step-top"><span class="chip"><span class="dot red"></span>Occupied</span></div>
+      <h3>Use</h3>
+      <p>The student closes the door. Sensors record the door and whether something is inside.</p>
+    </li>
+    <li>
+      <div class="step-top"><span class="chip"><span class="dot green"></span>Empty</span></div>
+      <h3>Return</h3>
+      <p>The student takes or returns the item and closes the door. The locker is free again and the record is saved on the server.</p>
+    </li>
+  </ol>
+  <p class="note">In the web dashboard, staff see what is out, who has it and what is overdue. Each rack also reports its GPS position, so a moved rack shows up on the map.</p>
+</section>
+
+<!-- NETWORK -->
+<section id="network">
+  <h2>How the pieces connect</h2>
+  <p class="lead">Lockers talk to their rack, racks talk to each other by radio, and one rack sends everything online.</p>
+
+  <div class="chain" role="group" aria-label="Network: Rack 1, LoRa link, Rack 2 gateway, GSM link, online server, internet, apps">
+    <div class="node">
+      <h3>Rack 1</h3>
+      <p>Controller, GPS and 2 to 3 lockers on one RS485 cable.</p>
+    </div>
+    <div class="link"><span>LoRa radio</span><i></i></div>
+    <div class="node">
+      <h3>Rack 2 (gateway)</h3>
+      <p>Same parts, plus a GSM module that goes online for both racks.</p>
+    </div>
+    <div class="link"><span>GSM mobile data</span><i></i></div>
+    <div class="node">
+      <h3>Online server</h3>
+      <p>Accounts, reservations, records and the unlock codes.</p>
+    </div>
+    <div class="link"><span>Internet</span><i></i></div>
+    <div class="node">
+      <h3>App and dashboard</h3>
+      <p>Mobile app for students, web dashboard for staff.</p>
+    </div>
+  </div>
+  <p class="chain-note">Phones unlock a locker directly over Bluetooth at the rack. Inside each rack, the lockers share a single cable that carries RS485 data and power. Lockers and racks can be added without changing any code: each locker gets its address automatically, the rack scans its bus and reports what it finds, and the server holds the list of racks and lockers.</p>
+</section>
+
+<!-- CATALOG -->
+<section class="catalog" id="catalog">
+  <h2>Component catalog</h2>
+  <p class="lead">Parts for one locker and one rack. The second rack repeats the rack parts.</p>
+
+  <h3>Per locker (25 × 60 × 60 cm)</h3>
+  <div class="tablewrap" tabindex="0" role="region" aria-label="Per locker parts, scrolls sideways on small screens">
+    <table>
+      <thead><tr><th>Part</th><th>Qty</th><th>Spec and note</th><th>Price (Rs.)</th></tr></thead>
+      <tbody>
+        <tr><td>Locker node MCU<br><small>ATmega8A-AU, TM0011</small></td><td>1</td><td>Original Atmel ATmega8A-AU, TQFP-32, 8 KB flash, hardware serial port, programmed with a USBasp through a 6-pin ISP header on the board. In stock.</td><td class="price">440.00</td></tr>
+        <tr><td>Crystal and capacitors<br><small>Hexa Node, <a href="https://shop.hexanode.lk/product/11-0592mhz-crystal-2-pin-thd/" target="_blank" rel="noopener">listing</a></small></td><td>1 set</td><td>11.0592 MHz crystal, 2-pin through-hole, 14 in stock. The listing tags give a 10 pF load capacitance, so use two capacitors of about 12 to 15 pF. The listing does not give the case height, and a low-profile case suits the shallow pocket.</td><td class="price">35.00 (crystal)</td></tr>
+        <tr><td>Locker node PCB</td><td>1</td><td>Custom board designed in KiCad: chip, RS485, lock driver, beam select and read chips, power and connectors. Made at the lab.</td><td class="price">Made at the lab</td></tr>
+        <tr><td>RS485 transceiver<br><small>MD0053</small></td><td>1</td><td>MAX485 module with the MAX485CSA chip, 5 V, 2.54 mm headers and a screw terminal, for development. The lab board can use the MAX485CSA chip (SOIC-8) directly. In stock.</td><td class="price">160.00</td></tr>
+        <tr><td>Solenoid lock<br><small>Code RL0062</small></td><td>1</td><td>Solenoid Door Lock 12VDC, 27 × 15 × 17 mm, tongue 7 mm long and 10 mm high, 120 mm cable. Powered to unlock (1 second) and locked when power is off, so it is fail-secure. Draws 0.4 A at 12 V. Red wire to positive, green to negative. Add a staff override key. In stock.</td><td class="price">1,200.00</td></tr>
+        <tr><td>Lock driver MOSFET<br><small>TRN0207</small></td><td>1</td><td>IRLZ44 logic-level N-channel MOSFET, TO-220, 60 V, 50 A, gate threshold 1 to 2 V. Through-hole and much larger than the 0.4 A lock needs. A small SOT-23 part such as the AO3400A is the surface-mount alternative. In stock at Duino. Not needed if the ULN2803 output driver is used instead.</td><td class="price">95.00</td></tr>
+        <tr><td>Flyback diode<br><small>DD8009</small></td><td>1</td><td>1N4007 rectifier diode, through-hole, across the lock with the stripe (cathode) on the +12 V side. The surface-mount equivalent is the M7. In stock at Duino. Not needed if the ULN2803 output driver is used instead.</td><td class="price">3.00</td></tr>
+        <tr><td>Gate resistor<br><small>RU0028</small></td><td>1</td><td>100 Ω 1/8 W 1% resistor, SMD 0805, pack of about 40, between the chip pin and the MOSFET gate. In stock at Tronic. Not needed if the ULN2803 output driver is used instead.</td><td class="price">60.00 per pack</td></tr>
+        <tr><td>Gate pull-down resistor</td><td>1</td><td>10 kΩ 1% SMD 0805 resistor from the gate to GND, so the lock stays locked while the chip boots or resets. Hexa Node sells 0805 values from 110 Ω to 12 kΩ. Not needed if the ULN2803 output driver is used instead.</td><td class="price">2.00 to 3.00 each</td></tr>
+        <tr><td>Door sensor<br><small>MD0978</small></td><td>1</td><td>Magnetic reed switch, sensor only, normally open, glass-sealed with wire leads, operates at 5 to 20 mm. Small enough to sit hidden in a drilled hole in the frame. Mount it a few centimetres away from the solenoid lock, whose magnetic field can trigger it. In stock.</td><td class="price">70.00</td></tr>
+        <tr><td>Door magnet</td><td>1</td><td>8 × 2 mm neodymium disc magnet, glued into the door edge facing the reed switch. Buy a couple of spares to test the switching distance. In stock at Duino.</td><td class="price">40.00</td></tr>
+        <tr><td>IR emitters<br><small>LE0008</small></td><td>8</td><td>5 mm 940 nm IR LED, through-hole. The listing also calls it a receiver, so check that it is an emitter before buying all 8. In stock.</td><td class="price">20.00 each</td></tr>
+        <tr><td>IR emitter resistors</td><td>8</td><td>About 470 Ω, SMD 0805, one per IR LED, giving roughly 7 mA through the decoder.</td><td class="price">2.00 to 3.00 each</td></tr>
+        <tr><td>IR receivers<br><small>SEN1520 · <a href="https://www.duino.lk/product/ir-infrared-receiver-w-metal-case-38khz/" target="_blank" rel="noopener">Duino listing</a></small></td><td>8</td><td>TL1838 / VS1838B 38 kHz infrared receiver, 2.7 to 5.5 V, digital output. Needs the emitters to send 38 kHz bursts. In stock.</td><td class="price">35.00 each</td></tr>
+        <tr><td>Beam receiver mux<br><small>IC0178</small></td><td>1</td><td>74HC151 8-to-1 multiplexer (the shop may supply the 74LS151). It reads one receiver at a time, using the same 3 select lines as the emitter decoder, so the chip needs only one input pin. This listing is a DIP-16 for development. The final SMD board needs the SOIC-16 version. In stock.</td><td class="price">260.00</td></tr>
+        <tr><td>Beam emitter decoder<br><small>IC0076</small></td><td>1</td><td>74HC138 3-to-8 decoder (the shop may supply the 74LS138). The selected output goes low and sinks the current of one IR emitter, so the emitters are scanned one at a time. The 38 kHz signal goes into its enable pin. This listing is a DIP-16 for development. The final SMD board needs the SOIC-16 version. In stock.</td><td class="price">50.00</td></tr>
+        <tr><td>Output driver<br><small>IC0033</small></td><td>1</td><td>ULN2803AG 8-channel Darlington array, SOIC-18, 500 mA per channel with built-in clamp diodes. Drives the lock (two channels in parallel, with its COM pin on +12 V) and the buzzer. It can replace the lock MOSFET, flyback diode, gate resistors and buzzer transistor, so those rows are alternatives to this one. SMD, for the final board. In stock.</td><td class="price">70.00</td></tr>
+        <tr><td>Output driver, DIP<br><small>ULN2803APG</small></td><td>1</td><td>ULN2803APG, the through-hole version, for breadboard testing. The listing does not show its package, so confirm it is the DIP-18. In stock.</td><td class="price">70.00</td></tr>
+        <tr><td>Status LED<br><small>Code LE0057</small></td><td>1</td><td>WS2812 5050 RGB addressable LED module, 1-bit, 5 V (SMD5050). One data pin gives all four colours: green for empty, amber for reserved, white for open and red for occupied. Run it at low brightness and put a 220 Ω resistor in the data line. In stock.</td><td class="price">180.00</td></tr>
+        <tr><td>LED data resistor<br><small>RU0032</small></td><td>1</td><td>220 Ω 1/8 W 1% resistor, SMD 0805, pack of about 40, in the WS2812 data line. In stock at Tronic.</td><td class="price">60.00 per pack</td></tr>
+        <tr><td>Buzzer<br><small>SP0001</small></td><td>1</td><td>5 V mini buzzer, through-hole, 11.8 mm across and 9.2 mm tall, 85 dB at 10 cm, up to 32 mA, rated to 45 °C. Too tall for the shallow pocket and close to its temperature limit, so mount it on the fixed frame. In stock.</td><td class="price">50.00</td></tr>
+        <tr><td>Buzzer driver</td><td>1</td><td>Small NPN transistor in SOT-23 (e.g. MMBT3904) with a 1 kΩ base resistor, because the buzzer draws up to 32 mA, more than a chip pin should supply. Not needed if the ULN2803 output driver is used instead.</td><td class="price">Not yet added</td></tr>
+        <tr><td>Automatic addressing</td><td>none</td><td>No switch needed. The connector carries two address pins: SEL in, from the previous slot, and SEL out, to the next slot. Each locker keeps a unique ID in the chip memory, and the rack gives it a bus address at start-up.</td><td class="price">No part</td></tr>
+        <tr><td>SEL resistors</td><td>3</td><td>One 10 kΩ pull-down on SEL in, so it reads low when nothing drives it, and a 330 Ω series resistor on each SEL pin for protection. SMD 0805.</td><td class="price">2.00 to 3.00 each</td></tr>
+        <tr><td>Node power</td><td>1</td><td>12 V to 5 V buck converter on the board (MP1584EN), an SMD TVS diode and a resettable fuse.</td><td class="price">Not yet added</td></tr>
+        <tr><td>Bus connector</td><td>1</td><td>6-pin locking connector (A, B, GND, +12 V, SEL in, SEL out), e.g. M12 or XT/JST style, so lockers can be unplugged and moved.</td><td class="price">Not yet added</td></tr>
+        <tr><td>Door hinges<br><small>Mcoco MS-207</small></td><td>2</td><td>Mcoco soft closing concealed hinge, steel, clip-on with screws. Needs a 35 mm cup hole in the 18 mm door. Confirm the overlay type with the shop, because the lockers have no face frame. In stock at Noorbhoy.</td><td class="price">544.49 each</td></tr>
+        <tr><td>Plywood body</td><td>1 set</td><td>18 mm treated plywood, 25 × 60 × 60 cm box. Two lockers fit on one 8 × 4 ft sheet at Rs 4,000 per sheet. 12 mm is enough for the sides, top and back if weight matters. Latch and strike plate to suit the solenoid, and a cable grommet.</td><td class="price">about 2,000</td></tr>
+        <tr><td>Glue, screws and sealer</td><td>1 set</td><td>Wood glue on every joint, countersunk wood screws (about 4 × 50 mm), and sealer or varnish for the inside, because food may be stored.</td><td class="price">Not yet added</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Per rack</h3>
+  <div class="tablewrap" tabindex="0" role="region" aria-label="Per rack parts, scrolls sideways on small screens">
+    <table>
+      <thead><tr><th>Part</th><th>Qty</th><th>Spec and note</th><th>Price (Rs.)</th></tr></thead>
+      <tbody>
+        <tr><td>Rack controller</td><td>1</td><td>ESP32 DevKit. Bluetooth for phone unlock, and it runs the RS485, LoRa and GSM links.</td><td class="price">Not yet added</td></tr>
+        <tr><td>RS485 transceiver<br><small>XY-017, MD0158</small></td><td>1</td><td>XY-017 UART to RS485 module, 3.3 V or 5 V, automatic direction control, surge and static protection, optional onboard 120 Ω termination. In stock.</td><td class="price">250.00</td></tr>
+        <tr><td>LoRa module</td><td>1</td><td>SX1276 or SX1278 (e.g. Ra-02) with a matching antenna. Links the racks. Check the legal band in Sri Lanka first.</td><td class="price">Not yet added</td></tr>
+        <tr><td>GSM module</td><td>1</td><td>4G module such as SIM7600 or A7670, with antenna and SIM. Needed on the gateway rack only. Avoid 2G-only modules, and check band support with the carrier.</td><td class="price">Not yet added</td></tr>
+        <tr><td>GPS</td><td>1</td><td>u-blox NEO-6M or NEO-M8N with antenna. Needs a view of the sky for the location demo.</td><td class="price">Not yet added</td></tr>
+        <tr><td>Tamper and move sensor</td><td>1</td><td>MPU6050 or ADXL345 accelerometer.</td><td class="price">Not yet added</td></tr>
+        <tr><td>Real-time clock<br><small>SKU ML2010</small></td><td>1</td><td>Real Time Clock Module IIC Precision DS3231 AT24C32. I2C, runs on 3.3 to 5.5 V, accurate to 2 ppm from 0 to 40 °C, two alarms, 38 × 22 × 14 mm. Used for timestamps and for checking when unlock codes expire. In stock.</td><td class="price">860.00</td></tr>
+        <tr><td>RTC backup battery</td><td>1</td><td>LIR2032 rechargeable coin cell, which the module is built for. Not included with the module, so the clock loses its time at power loss without it.</td><td class="price">Not yet added</td></tr>
+        <tr><td>Rack indicator</td><td>1</td><td>Small OLED or status LEDs for power, LoRa, GSM and faults.</td><td class="price">Not yet added</td></tr>
+        <tr><td>Controller enclosure</td><td>1</td><td>Plastic project box in the top bay, with cable glands and terminal blocks. Antennas mount outside it.</td><td class="price">Not yet added</td></tr>
+        <tr><td>Bus cable and slot taps</td><td>1 set</td><td>4-wire cable (A, B, GND, +12 V) down the back of the rack with one connector tap per slot, plus a short SEL link from each slot's SEL out to the next slot's SEL in. Locker back plugs connect to the taps as they slide in.</td><td class="price">Not yet added</td></tr>
+        <tr><td>SEL bypass plug</td><td>1 per empty slot</td><td>6-pin plug with a wire linking SEL in to SEL out. Fills any empty slot so lockers after it still get addresses.</td><td class="price">Not yet added</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Power and protection</h3>
+  <div class="tablewrap" tabindex="0" role="region" aria-label="Power parts, scrolls sideways on small screens">
+    <table>
+      <thead><tr><th>Part</th><th>Qty</th><th>Spec and note</th><th>Price (Rs.)</th></tr></thead>
+      <tbody>
+        <tr><td>Main supply</td><td>1</td><td>12 V 5 A mains supply, sized for the lockers. Only one solenoid fires at a time.</td><td class="price">Not yet added</td></tr>
+        <tr><td>Backup</td><td>1</td><td>12 V sealed lead-acid battery, or a 3S Li-ion pack with BMS, plus a charger and changeover module.</td><td class="price">Not yet added</td></tr>
+        <tr><td>GSM supply</td><td>1</td><td>Dedicated buck converter (about 4 V, 2 A or more) with a 1000 µF capacitor near the module, because GSM bursts can brown out a weak supply.</td><td class="price">Not yet added</td></tr>
+        <tr><td>Other regulators</td><td>1 set</td><td>Buck converters to 5 V and 3.3 V for the ESP32, LoRa and GPS.</td><td class="price">Not yet added</td></tr>
+        <tr><td>Protection</td><td>1 set</td><td>Main fuse, per-locker fuse or PTC, TVS diodes on the RS485 lines, reverse-polarity protection.</td><td class="price">Not yet added</td></tr>
+        <tr><td>Distribution</td><td>1</td><td>Terminal blocks or a power bus board, with one 4-pin port per locker.</td><td class="price">Not yet added</td></tr>
+        <tr><td>Cabling</td><td>as needed</td><td>Cat5e or Cat6, or 4-core shielded cable. A and B on one twisted pair, +12 V and GND doubled on the other.</td><td class="price">Not yet added</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Rack structure and tools</h3>
+  <div class="tablewrap" tabindex="0" role="region" aria-label="Structure and tools, scrolls sideways on small screens">
+    <table>
+      <thead><tr><th>Part</th><th>Qty</th><th>Spec and note</th><th>Price (Rs.)</th></tr></thead>
+      <tbody>
+        <tr><td>Rack frame</td><td>1</td><td>Wooden frame from 18 mm plywood, about one sheet per rack, with the electronics enclosure in the top bay.</td><td class="price">about 4,000</td></tr>
+        <tr><td>Rails and anchors</td><td>1 set</td><td>Plywood or timber strips glued inside each slot so lockers slide in straight and line up with the back sockets, plus anchor points to fix the rack to a wall or floor.</td><td class="price">Not yet added</td></tr>
+        <tr><td>QFP32 breakout board<br><small>SKU ACS4341-5 · <a href="https://www.duino.lk/product/qfp32-smd-pcb-board-0-651-27mm/" target="_blank" rel="noopener">Duino listing</a></small></td><td>3</td><td>QFP32 SMD to DIP adapter board, with pads for 0.8 mm pitch TQFP chips. For development only, to run the ATmega8A-AU on a breadboard before the custom board arrives. In stock at Duino.</td><td class="price">170.00 each</td></tr>
+        <tr><td>USB to RS485 adapter<br><small>COM0278</small></td><td>1</td><td>USB 2.0 to RS485 converter, powered from USB, up to 115200 baud. For testing and debugging the locker bus from a computer. In stock at Duino.</td><td class="price">470.00</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="tnote">Prices are added as each part is sourced. Locker boards use surface-mount parts. Plywood prices are for 18 mm treated sheets. Exact part numbers and quantities will be confirmed once the first locker and rack are prototyped.</p>
+</section>
+
+<!-- PILOT -->
+<section id="pilot">
+  <div class="pilot">
+    <div>
+      <h2>The pilot</h2>
+      <p class="lead">Two racks, each with 2 or 3 lockers, plus the mobile app, the web dashboard and the online server.</p>
+      <p class="soft">The second rack lets us show location tracking and the link between racks. The pilot runs next to the existing manual register, so students are never blocked if something fails.</p>
+    </div>
+    <div>
+      <h3>What we ask of the university</h3>
+      <ul class="asks">
+        <li>A lab or sports store to pilot in, and a staff member to sponsor it.</li>
+        <li>Wall space and a power outlet for two racks.</li>
+        <li>Agreement on which items are included and how long they can be borrowed.</li>
+      </ul>
+      <div class="actions">
+        <a class="btn solid" href="mailto:team@example.com?subject=Smart%20Locker%20Network%20pilot">Email the team</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="titleblock" role="group" aria-label="Project details">
+    <div class="wide"><small>Project</small><b>Smart Locker Network</b></div>
+    <div><small>Document</small><b>Pilot proposal</b></div>
+    <div><small>Revision</small><b>A</b></div>
+    <div><small>Prepared for</small><b>University administration</b></div>
+    <div class="wide"><small>Prepared by</small><b class="todo">[Team name and members]</b></div>
+    <div><small>Contact</small><b class="todo">[email address]</b></div>
+  </div>
+</section>
+
+</main>
+
+<script>
+(function(){
+  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var NS = 'http://www.w3.org/2000/svg';
+
+  function line(parent, x1, y1, x2, y2){
+    var l = document.createElementNS(NS, 'line');
+    l.setAttribute('x1', x1); l.setAttribute('y1', y1);
+    l.setAttribute('x2', x2); l.setAttribute('y2', y2);
+    parent.appendChild(l);
+  }
+  function sq(parent, x, y){
+    var r = document.createElementNS(NS, 'rect');
+    r.setAttribute('x', x - 3); r.setAttribute('y', y - 3);
+    r.setAttribute('width', 6); r.setAttribute('height', 6);
+    r.setAttribute('fill', 'var(--line)'); r.setAttribute('stroke', 'none');
+    parent.appendChild(r);
+  }
+
+  /* Beams inside each hero locker (front view, 8 beams) */
+  document.querySelectorAll('.locker .beams').forEach(function(g){
+    for (var i = 1; i <= 8; i++){
+      var y = 24 + i * (276 / 9);
+      line(g, 8, y, 117, y);
+    }
+  });
+
+  /* Beam grid in the plan view: 4 across + 4 along = 8 beams */
+  var plan = document.getElementById('beams-plan');
+  if (plan){
+    [140, 200, 260, 320].forEach(function(y){ line(plan, 190, y, 330, y); sq(plan, 190, y); sq(plan, 330, y); });
+    [215, 245, 275, 305].forEach(function(x){ line(plan, x, 100, x, 372); sq(plan, x, 100); sq(plan, x, 372); });
+  }
+
+  /* One-time draw-in for the hero drawing */
+  if (!reduce){
+    var els = Array.prototype.slice.call(document.querySelectorAll('#rack .draw'));
+    var rev = Array.prototype.slice.call(document.querySelectorAll('#rack .reveal'));
+    els.forEach(function(el){
+      try {
+        var len = el.getTotalLength();
+        el.style.strokeDasharray = len;
+        el.style.strokeDashoffset = len;
+        el.dataset.len = len;
+      } catch(e){}
+    });
+    rev.forEach(function(el){ el.style.opacity = 0; });
+    requestAnimationFrame(function(){
+      requestAnimationFrame(function(){
+        els.forEach(function(el){
+          if (!el.dataset.len) return;
+          var d = parseFloat(el.dataset.d || 0);
+          el.style.transition = 'stroke-dashoffset 1.3s cubic-bezier(.6,0,.2,1) ' + d + 's';
+          el.style.strokeDashoffset = 0;
+        });
+        rev.forEach(function(el){
+          var d = parseFloat(el.dataset.d || 0);
+          el.style.transition = 'opacity .6s ease ' + d + 's';
+          el.style.opacity = 1;
+        });
+      });
+    });
+  }
+
+  /* Locker states: tap to cycle */
+  var order = ['empty', 'reserved', 'open', 'occupied'];
+  var labels = {empty:'Empty', reserved:'Reserved', open:'Open', occupied:'Occupied'};
+  var live = document.getElementById('live');
+
+  function setState(g, s){
+    var n = Array.prototype.indexOf.call(document.querySelectorAll('.locker'), g) + 1;
+    g.setAttribute('data-state', s);
+    g.querySelector('.state-label').textContent = labels[s];
+    g.setAttribute('aria-label', 'Locker ' + n + ', ' + s + '. Press to change its state.');
+    if (live) live.textContent = 'Locker ' + n + ' is now ' + s + '.';
+  }
+  document.querySelectorAll('.locker').forEach(function(g){
+    function next(){
+      var cur = g.getAttribute('data-state');
+      setState(g, order[(order.indexOf(cur) + 1) % order.length]);
+    }
+    g.addEventListener('click', next);
+    g.addEventListener('keydown', function(e){
+      if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); next(); }
+    });
+  });
+})();
+</script>
+</body>
+</html>
